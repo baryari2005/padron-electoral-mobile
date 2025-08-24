@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+/* Opcional: si Tailwind no detecta bien clases, añade las fuentes */
+@source "./src/**/*.{js,ts,jsx,tsx,mdx}";
+/* Ahora tus componentes utilitarios */
+@layer components {
+  .btn {
+    @apply px-3 py-2 rounded-md font-medium;
+  }
+}
