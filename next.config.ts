@@ -15,7 +15,7 @@ const runtimeCaching: any[] = [
 const nextConfig: NextConfig = {
   eslint: { ignoreDuringBuilds: true },
   images: {
-    remotePatterns: [
+    remotePatterns: [      
       // Avatares que ya usás
       { protocol: "https", hostname: "ui-avatars.com", pathname: "/api/**" },
       // Subdominios dinámicos de ufs.sh (ej: 1ypfpxokgs.ufs.sh)

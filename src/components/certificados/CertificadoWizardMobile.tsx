@@ -2,13 +2,13 @@
 "use client";
 
 import React, { useMemo, useState, useCallback } from "react";
-import { useForm } from "react-hook-form";
-import type { FieldPath } from "react-hook-form";
+import { useForm, type FieldPath } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { Form } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
 
 import {
   certificadoSchema,
@@ -21,14 +21,26 @@ import { CertificadoHeaderSummary } from "@/features/certificados/components/Cer
 import { ResultadosPresidencialesForm } from "@/features/certificados/components/ResultadosPresidencialesForm";
 import { VotosEspecialesForm } from "@/features/certificados/components/VotosEspecialesForm";
 import { ResumenValidacionTotalesPorColumna } from "@/features/certificados/components/ResumenValidacionTotalesPorColumna";
+import CertificateHeader from "@/features/certificados/components/CertificateHeader";
+import type { EstablecimientoConCircuito } from "@/features/certificados/types/types";
 
 import { useCategorias } from "@/features/certificados/hooks/useCategorias";
 import { useAgrupaciones } from "@/features/certificados/hooks/useAgrupaciones";
 import { usePermisosMatriz } from "@/features/certificados/hooks/usePermisosMatriz";
 import { useCertificadoDefaults } from "@/features/certificados/hooks/useCertificadoDefaults";
-import { toast } from "sonner";
+import { CommonLoader } from "../common/CommonLoader";
+import MobileStepHeader from "@/features/certificados/components/MobileStepHeader";
+import { ErrorsCertificateSummary } from "@/features/certificados/components/ErrorsCertificateSummary";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/stores/auth";
 
-const STEPS = ["Mesa y Totales", "Resultados y Especiales", "Resumen y Guardado"] as const;
+// 👉 4 pasos (dos separados para Agrupaciones / Especiales)
+const STEPS = [
+  "Mesa y Totales",
+  "Votos por Agrupaciones",
+  "Votos especiales",
+  "Resumen y Guardado",
+] as const;
 
 const STEP_FIELDS: Record<number, FieldPath<CertificadoFormData>[]> = {
   0: ["mesa.escuelaId", "mesa.numeroMesa", "totales.sobres", "totales.votantes"],
@@ -36,8 +48,10 @@ const STEP_FIELDS: Record<number, FieldPath<CertificadoFormData>[]> = {
   2: [],
 };
 
-// helpers payload
+// --- helpers numéricos ---
 const toNum = (n: any) => (Number.isFinite(Number(n)) ? Number(n) : 0);
+
+// 🔧 MANDAR NUMÉRICOS AL API (evita strings en IDs numéricos)
 function toApiPayload(values: CertificadoFormData, categorias: { id: string }[]) {
   const votosEspeciales: Record<string, any> = {};
   for (const [catId, obj] of Object.entries(values.votosEspeciales || {})) {
@@ -76,7 +90,16 @@ function toApiPayload(values: CertificadoFormData, categorias: { id: string }[])
   };
 }
 
+const fechaEs = new Intl.DateTimeFormat("es-AR", {
+  day: "2-digit",
+  month: "long",
+  year: "numeric",
+}).format(new Date());
+
 export default function NuevaCargaMobilePage() {
+  const router = useRouter();                           // 👈
+  const token = useAuth((s) => s.token);                // 👈 sesión en memoria
+
   const form = useForm<CertificadoFormData>({
     resolver: zodResolver(certificadoSchema),
     mode: "onChange",
@@ -94,15 +117,18 @@ export default function NuevaCargaMobilePage() {
     ready: !loadingAgrupaciones,
   });
 
-  const [step, setStep] = useState<0 | 1 | 2>(0);
-  const [saving, setSaving] = useState(false); // ← estado local, no usamos isSubmitting
-  const isLast = step === (STEPS.length - 1);
+  const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
+  const isLast = step === STEPS.length - 1;
   const canBack = step > 0;
+  const [saving, setSaving] = useState(false);
 
-  // Inicializar filas en paso de resultados
+  // escuela seleccionada (para chips del header)
+  const [escuelaSel, setEscuelaSel] = useState<EstablecimientoConCircuito | null>(null);
+
+  // Defaults de resultados cuando corresponde
   useCertificadoDefaults(form, "crear", agrupaciones, categorias, step >= 1);
 
-  // Inconsistencias
+  // Inconsistencias resumen
   const sobres = form.watch("totales.sobres");
   const votosEspeciales = form.watch("votosEspeciales");
   const resultadosPresidenciales = form.watch("resultadosPresidenciales");
@@ -121,38 +147,36 @@ export default function NuevaCargaMobilePage() {
     });
   }, [categorias, votosEspeciales, resultadosPresidenciales, sobres]);
 
-  // Guardar solo manualmente
   const handleSave = useCallback(
     async (values: CertificadoFormData) => {
       try {
+        const token = useAuth.getState().token
+        if (!token) {
+          toast.error("Tu sesión no está activa. Iniciá sesión para guardar.");
+          router.replace("/login");
+          return;
+        }
+
         setSaving(true);
         const payload = toApiPayload(values, categorias ?? []);
         const res = await fetch("/api/scrutiny-certificates", {
           method: "POST",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          headers: { "Content-Type": "application/json", Accept: "application/json",  Authorization: `Bearer ${token}`,   },
           body: JSON.stringify(payload),
           cache: "no-store",
         });
-
-        let data: any = null;
-        try { data = await res.json(); } catch {}
-
+        const data = await res.json().catch(() => null);
         if (!res.ok) {
           const err = data?.error ?? data;
           let msg = `Error ${res.status}`;
           if (typeof err === "string") msg = err;
           else if (Array.isArray(err)) msg = err.map((i: any) => i?.message || JSON.stringify(i)).join("\n");
-          else if (err && typeof err === "object") {
-            const issues = (err as any).issues;
-            msg = Array.isArray(issues)
-              ? issues.map((i: any) => `${(i.path || []).join(".")}: ${i.message}`).join("\n")
-              : JSON.stringify(err);
-          }
+          else if (err?.issues) msg = err.issues.map((i: any) => `${(i.path || []).join(".")}: ${i.message}`).join("\n");
           throw new Error(msg);
         }
-
         toast.success("Certificado guardado con éxito.");
         form.reset();
+        setEscuelaSel(null);
         setStep(0);
       } catch (e: any) {
         toast.error(e?.message ?? "Error al guardar el certificado.");
@@ -161,107 +185,117 @@ export default function NuevaCargaMobilePage() {
         setSaving(false);
       }
     },
-    [categorias, form]
+    [categorias, form, token, router]
   );
 
-  // Bloquear Enter/NumpadEnter si no es el último paso
-  const blockEnterIfNotLast: React.KeyboardEventHandler<HTMLFormElement> = (e) => {
-    if (!isLast && (e.key === "Enter" || e.key === "NumpadEnter")) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  };
-
-  // Frenar CUALQUIER submit nativo en pasos 0/1 (por botones hijos sin type, etc.)
-  const preventSubmitWhenNotLast: React.FormEventHandler<HTMLFormElement> = (e) => {
-    if (!isLast) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  };
-
-  // Extra: por si algún hijo trae <button type="submit">, lo cazamos antes
-  const killAccidentalSubmitButton: React.MouseEventHandler<HTMLFormElement> = (e) => {
-    if (isLast) return;
-    const el = (e.target as HTMLElement)?.closest("button");
-    if (el && (el as HTMLButtonElement).type === "submit") {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  };
-
+  // navegación
   const next = async () => {
     const fields = STEP_FIELDS[step] ?? [];
     if (fields.length) {
       const ok = await form.trigger(fields, { shouldFocus: true });
       if (!ok) return;
     }
-    setStep((s) => (s === 0 ? 1 : 2));
+    setStep((s) => (s < (STEPS.length - 1) ? ((s + 1) as typeof s) : s));
   };
-
-  const back = () => setStep((s) => (s === 2 ? 1 : 0));
+  const back = () => setStep((s) => (s > 0 ? ((s - 1) as typeof s) : s));
 
   const isLoading = loadingCategorias || loadingAgrupaciones;
+
+  // datos para header
+  const circuitoValor = useMemo(() => {
+    const c: any = (escuelaSel as any)?.circuito;
+    return c?.nombre ?? c?.codigo ?? c?.numero ?? "-";
+  }, [escuelaSel]);
+  const mesaValor = form.watch("mesa.numeroMesa") || "-";
 
   return (
     <Form {...form}>
       <form
         noValidate
-        onSubmit={preventSubmitWhenNotLast}
-        onSubmitCapture={preventSubmitWhenNotLast}
-        onClickCapture={killAccidentalSubmitButton}
-        onKeyDown={blockEnterIfNotLast}
+        onSubmit={(e) => { if (!isLast) { e.preventDefault(); e.stopPropagation(); } }}
+        onKeyDown={(e) => { if (!isLast && (e.key === "Enter" || e.key === "NumpadEnter")) { e.preventDefault(); e.stopPropagation(); } }}
         className="min-h-[100dvh] flex flex-col"
       >
-        <header className="sticky top-0 z-30 bg-background/90 backdrop-blur border-b">
-          <div className="px-4 py-3 space-y-1">
-            <p className="text-[11px] text-muted-foreground">Paso {step + 1} / {STEPS.length}</p>
-            <h1 className="text-lg font-semibold">{STEPS[step]}</h1>
-          </div>
+        {/* ⛳️ Encabezado SIEMPRE visible en todos los pasos */}
+        <header className="sticky top-0 z-40 bg-background/80 backdrop-blur">
+          <MobileStepHeader
+            step={step}
+            steps={STEPS}
+            escuela={escuelaSel?.nombre ?? null}
+            circuito={String(circuitoValor || "-")}
+            mesa={String(mesaValor || "-")}
+            loadingText={isLoading ? "Cargando…" : undefined}
+            avatarColor="emerald"
+          />
+          <Separator />
         </header>
 
         <main className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Cargando…</p>
+            <CommonLoader
+              logo="/logo.png"
+              alternativeLogo="/logo-white.png"
+              alternativeText="Más San Miguel"
+              title="Votaciones 2025"
+              subTitle="San Miguel"
+              loaderText="Cargando certificado de escrutinio ..."
+            />
           ) : (
             <>
               {step === 0 && (
                 <section className="space-y-4">
-                  <MesaSelector control={form.control} setValue={form.setValue} disabled={false} />
+                  <CertificateHeader
+                    fecha={fechaEs}
+                    seccionValor={(() => {
+                      const s: any = (escuelaSel as any)?.circuito?.seccion || (escuelaSel as any)?.seccion;
+                      const codigo = s?.codigo ?? s?.numero ?? s?.id;
+                      const nombre = s?.nombre ?? "SAN MIGUEL";
+                      return codigo ? `${codigo} - ${nombre}` : "53 - SAN MIGUEL";
+                    })()}
+                    circuitoValor={String(circuitoValor || "-")}
+                    mesaValor={String(mesaValor || "-")}
+                  />
+                  <MesaSelector
+                    control={form.control}
+                    setValue={form.setValue}
+                    disabled={false}
+                    onEscuelaSeleccionada={setEscuelaSel}
+                  />
                   <Separator />
                   <TotalesForm control={form.control} setValue={form.setValue} />
                 </section>
               )}
 
+              {/* Paso 2: SOLO Agrupaciones */}
               {step === 1 && (
-                <section className="space-y-4">
+                <section className="space-y-4 -mx-4 px-4 overflow-x-auto">
                   <CertificadoHeaderSummary />
-                  <div className="-mx-4 px-4 overflow-x-auto">
-                    <ResultadosPresidencialesForm
-                      control={form.control}
-                      resultadosPresidenciales={form.getValues().resultadosPresidenciales}
-                      categorias={categorias}
-                      agrupaciones={agrupaciones}
-                      habilitadosPorAgrupacion={habilitadosPorAgrupacion}
-                      loadingPermisos={loadingPermisos}
-                    />
-                  </div>
-                  <Separator />
-                  <div className="-mx-4 px-4 overflow-x-auto">
-                    <VotosEspecialesForm control={form.control} categorias={categorias} />
-                  </div>
+                  <ResultadosPresidencialesForm
+                    control={form.control}
+                    resultadosPresidenciales={form.getValues().resultadosPresidenciales}
+                    categorias={categorias}
+                    agrupaciones={agrupaciones}
+                    habilitadosPorAgrupacion={habilitadosPorAgrupacion}
+                    loadingPermisos={loadingPermisos}
+                  />
                 </section>
               )}
 
+              {/* Paso 3: SOLO Especiales */}
               {step === 2 && (
-                <section className="space-y-4">
-                  <div className="-mx-4 px-4 overflow-x-auto">
-                    <ResumenValidacionTotalesPorColumna control={form.control} categorias={categorias} />
-                  </div>
+                <section className="space-y-4 -mx-4 px-4 overflow-x-auto">
+                  <CertificadoHeaderSummary />
+                  <VotosEspecialesForm control={form.control} categorias={categorias} />
+                </section>
+              )}
+
+              {/* Paso 4: Resumen */}
+              {step === 3 && (
+                <section className="space-y-4 -mx-4 px-4 overflow-x-auto">
+                  <ResumenValidacionTotalesPorColumna control={form.control} categorias={categorias} />
+
                   {hayInconsistencias && (
-                    <p className="text-sm text-red-600 font-medium">
-                      Hay diferencias entre sobres y los totales por columna.
-                    </p>
+                    <ErrorsCertificateSummary errores={"Hay diferencias entre sobres y los totales por columna."} />
                   )}
                 </section>
               )}
@@ -269,8 +303,9 @@ export default function NuevaCargaMobilePage() {
           )}
         </main>
 
+        <Separator className="mb-2" />
         <footer
-          className="sticky bottom-0 bg-background/90 backdrop-blur border-t px-4 py-3"
+          className="sticky bottom-0 bg-background/90 backdrop-blur px-4 py-3"
           style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
         >
           <div className="flex gap-2">
@@ -289,12 +324,7 @@ export default function NuevaCargaMobilePage() {
                 {saving ? "Guardando…" : "Guardar"}
               </Button>
             ) : (
-              <Button
-                type="button"
-                className="flex-1"
-                onClick={next}
-                disabled={saving}
-              >
+              <Button type="button" className="flex-1" onClick={next} disabled={saving}>
                 Siguiente
               </Button>
             )}

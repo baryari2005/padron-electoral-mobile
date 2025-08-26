@@ -62,125 +62,125 @@ export function MesaSelector({
     return () => { alive = false; };
   }, []);
 
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-[68%_30%] gap-4 md:gap-x-6 md:px-1 items-start">
-      {/* ESCUELA */}
-      <FormField
-        control={control}
-        name="mesa.escuelaId"
-        render={({ field }) => {
-          const triggerId = "escuela-escuelaId-trigger";
-          const labelId = "escuela-escuelaId-label";
-          return (
-            <FormItem>
-              <FormLabel id={labelId} htmlFor={triggerId}>
-                Escuela / Establecimiento
-              </FormLabel>
-              <FormControl>
-                <FormCombo<EstablecimientoConCircuito>
-                  id={triggerId}
-                  labelId={labelId}
-                  value={String(field.value ?? "")}
-                  onChange={(v) => field.onChange(v)}
-                  options={escuelas}
-                  getOptionLabel={(e) => e.nombre}
-                  getOptionValue={(e) => String(e.id)}
-                  onOptionSelected={async (establecimiento) => {
-                    if (establecimiento?.circuito?.id) {
-                      setValue("mesa.circuitoId", String(establecimiento.circuito.id));
-                    }
-                    setValue("mesa.numeroMesa", "");
-                    setEscuelaSeleccionada(establecimiento);
-                    onEscuelaSeleccionada?.(establecimiento);
-                    try {
+ return (
+    <section className="bg-card border border-border rounded-2xl shadow-sm p-4 md:p-6 space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-[68%_30%] gap-4 md:gap-x-6 items-start">
+        {/* ESCUELA */}
+        <FormField
+          control={control}
+          name="mesa.escuelaId"
+          render={({ field }) => {
+            const triggerId = "escuela-escuelaId-trigger";
+            const labelId = "escuela-escuelaId-label";
+            return (
+              <FormItem>
+                <FormLabel
+                  id={labelId}
+                  htmlFor={triggerId}
+                  className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold"
+                >
+                  Escuela / Establecimiento
+                </FormLabel>
+                <FormControl>
+                  <FormCombo<EstablecimientoConCircuito>
+                    id={triggerId}
+                    labelId={labelId}
+                    value={String(field.value ?? "")}
+                    onChange={(v) => field.onChange(v)}
+                    options={escuelas}
+                    getOptionLabel={(e) => e.nombre}
+                    getOptionValue={(e) => String(e.id)}
+                    onOptionSelected={async (establecimiento) => {
+                      if (establecimiento?.circuito?.id) {
+                        setValue("mesa.circuitoId", String(establecimiento.circuito.id));
+                      }
+                      setValue("mesa.numeroMesa", "");
+                      setEscuelaSeleccionada(establecimiento);
+                      onEscuelaSeleccionada?.(establecimiento);
+
                       try {
                         const res = await fetch(
                           `/api/establishments/${establecimiento.id}/available-tables`,
-                          {
-                            cache: "no-store",
-                            headers: { Accept: "application/json" },
-                          }
+                          { cache: "no-store", headers: { Accept: "application/json" } }
                         );
-
-                        // intentamos parsear siempre
                         const text = await res.text().catch(() => "");
                         let body: any = null;
                         try { body = text ? JSON.parse(text) : null; } catch { body = text; }
-
                         if (!res.ok) {
                           const msg = body?.error || body?.message || `Error ${res.status}`;
                           throw new Error(msg);
                         }
-
                         const items = body?.items ?? body ?? [];
                         const mesasFiltradas = items.filter((m: any) => !m.escrutada);
                         setMesasDisponibles(mesasFiltradas);
                       } catch (err) {
                         console.error("Error al cargar mesas disponibles", err);
                       }
-                    } catch (err) {
-                      console.error("Error al cargar mesas disponibles", err);
-                    }
-                  }}
-                  disabled={disabled}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          );
-        }}
-      />
-
-      {/* NÚMERO DE MESA */}
-      <FormField
-        control={control}
-        name="mesa.numeroMesa"
-        render={({ field }) => {
-          const triggerId = "escuela-nromesa-trigger";
-          const labelId = "escuela-nromesa-label";
-
-          if (disabled) {
-            // Solo lectura: mantené accesibilidad con label htmlFor + id del input
-            return (
-              <FormItem>
-                <FormLabel id={labelId} htmlFor="nro-mesa-readonly">
-                  Número de Mesa
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    id="nro-mesa-readonly"
-                    value={`${field.value ?? ""}`}
-                    disabled
-                    readOnly
+                    }}
+                    disabled={disabled}
+                    className="h-11 rounded-xl"      // si tu FormCombo propaga className al trigger
                   />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             );
-          }
+          }}
+        />
 
-          return (
-            <FormItem>
-              <FormLabel id={labelId} htmlFor={triggerId}>
-                Número de Mesa
-              </FormLabel>
-              <FormControl>
-                <FormCombo<{ numero: number }>
-                  id={triggerId}
-                  labelId={labelId}
-                  value={String(field.value ?? "")}
-                  onChange={(v) => field.onChange(v)}
-                  options={mesasDisponibles}
-                  getOptionLabel={(m) => `Mesa ${m.numero}`}
-                  getOptionValue={(m) => String(m.numero)}
-                  disabled={!escuelaSeleccionada}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          );
-        }}
-      />
-    </div>
+        {/* NÚMERO DE MESA */}
+        <FormField
+          control={control}
+          name="mesa.numeroMesa"
+          render={({ field }) => {
+            const triggerId = "escuela-nromesa-trigger";
+            const labelId = "escuela-nromesa-label";
+
+            if (disabled) {
+              return (
+                <FormItem>
+                  <FormLabel
+                    id={labelId}
+                    htmlFor="nro-mesa-readonly"
+                    className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold"
+                  >
+                    Número de Mesa
+                  </FormLabel>
+                  <FormControl>
+                    <Input id="nro-mesa-readonly" value={`${field.value ?? ""}`} disabled readOnly />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              );
+            }
+
+            return (
+              <FormItem>
+                <FormLabel
+                  id={labelId}
+                  htmlFor={triggerId}
+                  className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold"
+                >
+                  Número de Mesa
+                </FormLabel>
+                <FormControl>
+                  <FormCombo<{ numero: number }>
+                    id={triggerId}
+                    labelId={labelId}
+                    value={String(field.value ?? "")}
+                    onChange={(v) => field.onChange(v)}
+                    options={mesasDisponibles}
+                    getOptionLabel={(m) => `Mesa ${m.numero}`}
+                    getOptionValue={(m) => String(m.numero)}
+                    disabled={!escuelaSeleccionada}
+                    className="h-11 rounded-xl"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            );
+          }}
+        />
+      </div>
+    </section>
   );
 }

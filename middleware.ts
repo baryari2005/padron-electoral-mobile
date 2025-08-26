@@ -1,11 +1,12 @@
-// middleware.ts (raíz del proyecto)
+// middleware.ts
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
+// Solo redirige la raíz a /login. Nada de cookies acá.
 export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
-  // públicos (evitar loops / bloquear estáticos/PWA)
+  // Dejá pasar estáticos/PWA/API/login
   const isPublic =
     pathname.startsWith("/login") ||
     pathname.startsWith("/api") ||
@@ -17,31 +18,18 @@ export function middleware(req: NextRequest) {
     pathname.startsWith("/sw");
   if (isPublic) return NextResponse.next();
 
-  // 👇 redirección para la raíz
   if (pathname === "/") {
-    const token = req.cookies.get("auth_token")?.value;
     const url = req.nextUrl.clone();
-    url.pathname = token ? "/certificados/nuevo" : "/login";
-    // opcional: preservar query, por ejemplo ?next=...
+    url.pathname = "/login";
     url.search = search;
     return NextResponse.redirect(url);
   }
 
-  // Rutas protegidas
-  const protectedPrefixes = ["/certificados"];
-  const isProtected = protectedPrefixes.some((p) => pathname.startsWith(p));
-  if (!isProtected) return NextResponse.next();
-
-  const token = req.cookies.get("auth_token")?.value;
-  if (!token) {
-    const login = req.nextUrl.clone();
-    login.pathname = "/login";
-    login.searchParams.set("next", pathname + search);
-    return NextResponse.redirect(login);
-  }
+  // El resto lo decide el cliente (RequireAuth)
   return NextResponse.next();
 }
 
+// Solo matcheá la raíz (no interceptes /certificados, etc.)
 export const config = {
-  matcher: ["/", "/certificados/:path*"], // incluimos la raíz
+  matcher: ["/"],
 };

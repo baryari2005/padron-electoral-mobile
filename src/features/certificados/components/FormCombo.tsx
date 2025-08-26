@@ -18,12 +18,13 @@ type Props<T extends Option> = {
   placeholder?: string;
   disabled?: boolean;
   onOptionSelected?: (opt: T) => void;
+  className?: string;                // 👈 opcional para el trigger
 };
 
 export function FormCombo<T extends Option>({
   id, labelId, value, onChange, options,
   getOptionLabel, getOptionValue, placeholder = "Seleccionar…",
-  disabled, onOptionSelected
+  disabled, onOptionSelected, className,
 }: Props<T>) {
   const [open, setOpen] = React.useState(false);
   const selected = React.useMemo(
@@ -41,7 +42,8 @@ export function FormCombo<T extends Option>({
           disabled={disabled}
           className={cn(
             "w-full inline-flex items-center justify-between rounded-md border px-3 py-2 text-left text-sm",
-            "bg-white hover:bg-neutral-50 disabled:opacity-50"
+            "bg-white hover:bg-neutral-50 disabled:opacity-50",
+            className                           // 👈 p.ej. "h-11 rounded-xl"
           )}
         >
           <span className="truncate">
@@ -51,20 +53,21 @@ export function FormCombo<T extends Option>({
         </button>
       </PopoverTrigger>
 
-      {/* 👇 Fondo sólido, sin transparencia, z alto y ancho del trigger */}
+      {/* Ancho EXACTO del trigger */}
       <PopoverContent
         align="start"
         side="bottom"
         sideOffset={6}
         className="
-          z-[9999] w-[--radix-popper-anchor-width] p-0
+          z-[9999] p-0
+          w-[var(--radix-popover-trigger-width)]   /* 👈 esta es la clave */
           bg-white border border-neutral-200 shadow-xl rounded-md
+          overflow-x-hidden                        /* evita scroll horizontal */
           dark:bg-neutral-900 dark:border-neutral-700
         "
       >
         <Command className="bg-white dark:bg-neutral-900">
-          {/* buscador sticky para que no ‘salte’ */}
-          <div className="sticky top-0 z-10 bg-white dark:bg-neutral-900 border-b dark:border-neutral-800 p-2">
+          <div className="sticky top-0 z-10 bg-white  p-2">
             <CommandInput placeholder="Buscar…" />
           </div>
 
@@ -79,11 +82,7 @@ export function FormCombo<T extends Option>({
                 <CommandItem
                   key={val}
                   value={label}
-                  onSelect={() => {
-                    onChange(val);
-                    onOptionSelected?.(opt);
-                    setOpen(false);
-                  }}
+                  onSelect={() => { onChange(val); onOptionSelected?.(opt); setOpen(false); }}
                   className={cn(
                     "flex items-center gap-2 min-h-11 cursor-pointer",
                     "hover:bg-neutral-50 dark:hover:bg-neutral-800"

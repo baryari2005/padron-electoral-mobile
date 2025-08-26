@@ -1,112 +1,89 @@
 // app/api/scrutiny-certificates/route.ts
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { ENV } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-import { ENV } from '@/lib/env';
-
 const BASE = ENV.API_BASE_URL;
 
-function tryJson(text: string) {
-  try { return JSON.parse(text); } catch { return text; }
-}
+const toInt = (v: any) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : NaN;
+};
+const tryJson = (text: string) => { try { return JSON.parse(text); } catch { return text; } };
+const bearer = (raw?: string | null) => {
+  if (!raw) return null;
+  return /^Bearer\s/i.test(raw) ? raw : `Bearer ${raw}`;
+};
 
 /**
- * Adapta el payload del cliente al contrato del backend:
- * - mesa: { numeroMesa, escuelaId, circuitoId }
- * - resultadosPresidenciales: [{ id: agrupacionId, "1": votos, "2": votos, ... }]
- *
- * Soporta estos inputs:
- * A) shape ya correcto (con mesa.numeroMesa y resultadosPresidenciales)
- * B) shape “API intermedio” (establecimientoId/numeroMesa + resultados[])
- * C) shape del form (mesa.{escuelaId, numeroMesa, circuitoId} + resultadosPresidenciales[])
+ * Normaliza el payload al contrato del backend
  */
 function toBackendPayload(input: any) {
-  // A) Si ya cumple el contrato, devolvemos tal cual.
-  const hasMesaCorrecta =
-    input?.mesa &&
-    (input.mesa.numeroMesa ?? input.mesa.numero) != null && // toleramos "numero"
-    (input.mesa.escuelaId ?? input.mesa.establecimientoId) != null &&
-    input.mesa.circuitoId != null;
-
-  if (hasMesaCorrecta && Array.isArray(input?.resultadosPresidenciales)) {
-    // normalizamos nombre "numero" -> "numeroMesa" si viniera así
-    if (input.mesa.numero != null && input.mesa.numeroMesa == null) {
-      input.mesa.numeroMesa = Number(input.mesa.numero);
-      delete input.mesa.numero;
-    }
-    if (input.mesa.establecimientoId != null && input.mesa.escuelaId == null) {
-      input.mesa.escuelaId = String(input.mesa.establecimientoId);
-      delete input.mesa.establecimientoId;
-    }
-    return input;
-  }
-
-  // Campos sueltos comunes
-  const escuelaId =
+  // Campos sueltos comunes (admite varias formas)
+  const escuelaIdRaw =
     input?.mesa?.escuelaId ??
     input?.mesa?.establecimientoId ??
-    input?.establecimientoId ??
-    "";
+    input?.establecimientoId;
+
   const numeroMesaRaw =
     input?.mesa?.numeroMesa ??
     input?.mesa?.numero ??
     input?.numeroMesa;
+
   const circuitoIdRaw =
     input?.mesa?.circuitoId ??
     input?.circuitoId;
 
   const mesa = {
-    escuelaId: String(escuelaId ?? ""),
-    numeroMesa: Number(numeroMesaRaw ?? NaN),
-    circuitoId: Number(circuitoIdRaw ?? NaN),
+    // Coerción a NÚMERO (evita problemas de FK/validación)
+    escuelaId: toInt(escuelaIdRaw),
+    numeroMesa: toInt(numeroMesaRaw),
+    circuitoId: toInt(circuitoIdRaw),
   };
 
-  // totales y votosEspeciales pasan casi directos
   const totales = input?.totales ?? {};
   const votosEspeciales = input?.votosEspeciales ?? {};
 
-  // B) Si viene “resultados” como array [{categoria, agrupacionId, votos}], lo agrupamos
+  // B) resultados como [{ categoria, agrupacionId, votos }]
   if (Array.isArray(input?.resultados)) {
     const byGroup: Record<string, Record<string, number>> = {};
     for (const r of input.resultados) {
       const agId = String(r?.agrupacionId ?? "");
       const catId = String(r?.categoria ?? "");
-      const votos = Number(r?.votos ?? 0);
+      const votos = toInt(r?.votos ?? 0);
       if (!agId || !/^\d+$/.test(catId)) continue;
-      byGroup[agId] = byGroup[agId] || {};
-      byGroup[agId][catId] = votos;
+      byGroup[agId] ??= {};
+      byGroup[agId][catId] = Number.isFinite(votos) ? votos : 0;
     }
     const resultadosPresidenciales = Object.entries(byGroup).map(([ag, cats]) => ({
-      id: Number(ag),
-      ...cats, // "1": n, "2": n, ...
+      id: toInt(ag),
+      ...cats,
     }));
     return { mesa, totales, votosEspeciales, resultadosPresidenciales };
   }
 
-  // C) Si ya viene “resultadosPresidenciales” del form, solo aseguramos id correcto
+  // C) resultadosPresidenciales con filas por agrupación
   if (Array.isArray(input?.resultadosPresidenciales)) {
     const resultadosPresidenciales = input.resultadosPresidenciales.map((row: any) => {
-      // del form a veces viene "agrupacionId" en vez de "id"
       const id = row?.id ?? row?.agrupacionId;
-      const out: any = { id: Number(id) };
+      const out: any = { id: toInt(id) };
       for (const [k, v] of Object.entries(row ?? {})) {
-        if (/^\d+$/.test(k)) out[k] = Number(v ?? 0);
+        if (/^\d+$/.test(k)) out[k] = Number.isFinite(Number(v)) ? Number(v) : 0;
       }
       return out;
     });
     return { mesa, totales, votosEspeciales, resultadosPresidenciales };
   }
 
-  // Fallback: devolvemos lo mejor que podamos
+  // Fallback
   return { mesa, totales, votosEspeciales, resultadosPresidenciales: [] };
 }
 
 export async function POST(req: Request) {
   try {
-    const token = (await cookies()).get("auth_token")?.value;
     if (!BASE) {
       return NextResponse.json(
         { error: "API base URL no configurada (NEXT_PUBLIC_API_URL / API_URL)" },
@@ -114,31 +91,53 @@ export async function POST(req: Request) {
       );
     }
 
-    const raw = await req.json();
+    // 1) Intentar token por HEADER (tu app lo manda en memoria)
+    const headerAuth =
+      req.headers.get("authorization") ??
+      req.headers.get("Authorization") ??
+      req.headers.get("x-access-token");
+
+    // 2) Fallback: cookie (si alguna vez decidís usarla)
+    const cookieStore = await cookies();                                  // 👈 FIX: usar await
+    const cookieToken = cookieStore.get("auth_token")?.value ?? null;     // 👈 ahora sí .get
+
+    // Normalizar a "Bearer <token>"
+    const authHeader = bearer(headerAuth) ?? bearer(cookieToken);
+
+    const raw = await req.json().catch(() => null);
+    if (!raw) return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
+
     const payload = toBackendPayload(raw);
 
-    // Validación mínima antes de enviar al upstream
-    if (!payload?.mesa?.escuelaId || !payload?.mesa?.numeroMesa || !payload?.mesa?.circuitoId) {
+    // Validación mínima (aseguramos números válidos)
+    if (
+      !Number.isFinite(payload?.mesa?.escuelaId) ||
+      !Number.isFinite(payload?.mesa?.numeroMesa) ||
+      !Number.isFinite(payload?.mesa?.circuitoId)
+    ) {
       return NextResponse.json(
-        { error: "Faltan datos obligatorios en 'mesa' (escuelaId, numeroMesa, circuitoId)" },
+        { error: "Faltan datos válidos en 'mesa' (escuelaId, numeroMesa, circuitoId numéricos)" },
         { status: 400 }
       );
     }
 
     console.log("▶ proxy /scrutiny-certificates →", {
       base: BASE,
-      hasToken: Boolean(token),
+      hasToken: Boolean(authHeader),
       mesa: payload.mesa,
-      resultadosLen: Array.isArray(payload?.resultadosPresidenciales) ? payload.resultadosPresidenciales.length : 0,
+      resultadosLen: Array.isArray(payload?.resultadosPresidenciales)
+        ? payload.resultadosPresidenciales.length
+        : 0,
     });
 
     const upstream = await fetch(`${BASE}/scrutiny-certificates`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(authHeader ? { Authorization: authHeader } : {}),
       },
       body: JSON.stringify(payload),
+      cache: "no-store",
     });
 
     const text = await upstream.text();

@@ -1,8 +1,9 @@
-export function getAvatarUrl(nombre: string, originalUrl?: string | null): string {
-  if (originalUrl && originalUrl.trim() !== "") return originalUrl;
-
-  const nameParam = nombre.trim().replace(/ /g, "+"); // ✅ usamos "+" directamente
-
-  // 🔒 No usar URLSearchParams ni encodeURIComponent
-  return `https://ui-avatars.com/api/?name=${nameParam}&background=adf5d7&color=000&size=128&rounded=true&bold=true`;
+export function getAvatarUrl(nombre: string, profileImage?: string | null): string {
+  if (profileImage) return profileImage;
+  const bg = "adf5d7";
+  const color = "000";
+  const size = 128;
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(
+    nombre
+  )}&background=${bg}&color=${color}&size=${size}&rounded=true&bold=true&format=png`;
 }

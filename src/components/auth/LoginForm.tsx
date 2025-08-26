@@ -1,3 +1,4 @@
+// src/components/auth/LoginForm.tsx
 "use client";
 
 import { useState } from "react";
@@ -7,110 +8,144 @@ import { loginSchema, type LoginValues } from "@/lib/validations/login.schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
-import { Loader2, Eye, EyeOff, LogIn } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
+import { motion } from "framer-motion";
+
+import { useRouter } from "next/navigation";           // ✅ App Router
+
+import { Logo } from "app/components/Logo";
+import { useAuth } from "stores/auth";
 
 export default function LoginForm() {
-  const [showPass, setShowPass] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const router = useRouter();
+  const setSession = useAuth((s) => s.setSession);
+
   const {
     register,
     handleSubmit,
-    formState: { errors },
-  } = useForm<LoginValues>({ resolver: zodResolver(loginSchema) });
+    formState: { errors, isSubmitting, isValid },
+  } = useForm<LoginValues>({
+    resolver: zodResolver(loginSchema),
+    mode: "onChange",
+  });
 
   const onSubmit = async (data: LoginValues) => {
+    setFormError(null);
     try {
-      setLoading(true);
-      const body = { identifier: data.email, password: data.password }; 
       const res = await fetch("/api/app-auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ identifier: data.email, password: data.password }),
+        cache: "no-store",
       });
-      if (!res.ok) throw new Error("Credenciales inválidas");
-      // Ej: guardar token en storage/Zustand y redirigir
-      // const { token } = await res.json();
-      // setToken(token)
-      window.location.href = "/"; // o dashboard
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error ?? "Credenciales inválidas");
+
+      // ✅ sesión SOLO en memoria
+      if (json?.token) setSession(json.token, json.user);
+
+      // ✅ navegar sin recargar (evita perder la store)
+      // usa tu ruta privada real; si tenés /certificados/nuevo, mejor ir ahí:
+      router.replace("/certificados/nuevo");
+      // router.replace("/"); // si tu "/" es privado y NO te lo redirige el middleware
     } catch (e: any) {
-      alert(e?.message ?? "Error al iniciar sesión");
-    } finally {
-      setLoading(false);
+      setFormError(e?.message ?? "Error al iniciar sesión");
     }
   };
 
   return (
-    <div className="min-h-dvh grid place-items-center p-4">
-      <Card className="w-full max-w-sm p-6 shadow-xl rounded-2xl">
-        <div className="text-center mb-6">
-          <h1 className="text-xl font-semibold">Ingresar</h1>
-          <p className="text-sm text-muted-foreground">Votaciones 2025</p>
-        </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-1">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="text"
-              inputMode="email"
-              autoCapitalize="none"
-              autoComplete="email"
-              placeholder="tu@correo.com"
-              {...register("email")}
-            />
-            {errors.email && (
-              <p className="text-xs text-red-600">{errors.email.message}</p>
-            )}
+    <div className="min-h-dvh flex items-start sm:items-center justify-center p-4 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-50 to-white">
+      <div className="w-full max-w-md">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="w-full max-w-md flex flex-col items-center space-y-6"
+        >
+          <Logo />
+          <div className="text-center">
+            <h1 className="text-3xl my-2 font-bold">
+              Bienvenido al dashboard de votaciones 2025.
+            </h1>
           </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="password">Contraseña</Label>
-            <div className="relative">
-              <Input
-                id="password"
-                type={showPass ? "text" : "password"}
-                autoComplete="current-password"
-                placeholder="•••••••"
-                className="pr-10"
-                {...register("password")}
-              />
-              <button
-                type="button"
-                aria-label={showPass ? "Ocultar contraseña" : "Mostrar contraseña"}
-                className="absolute inset-y-0 right-2 grid place-items-center"
-                onClick={() => setShowPass((s) => !s)}
-              >
-                {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+          <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6 w-full">
+            <div className="text-center space-y-2">
+              <h2 className="text-3xl font-bold tracking-tighter">Iniciar sesión.</h2>
+              <p className="text-muted-foreground">
+                Ingresá tus credenciales para acceder a tu cuenta.
+              </p>
             </div>
-            {errors.password && (
-              <p className="text-xs text-red-600">{errors.password.message}</p>
-            )}
+
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+              <div className="space-y-1.5">
+                <Label htmlFor="email">Usuario o Correo electrónico</Label>
+                <Input
+                  id="email"
+                  type="text"
+                  inputMode="email"
+                  autoComplete="username"
+                  enterKeyHint="next"
+                  placeholder="user123 o test@ejemplo.com"
+                  className="h-11"
+                  {...register("email")}
+                  aria-invalid={!!errors.email}
+                />
+                {errors.email && <p className="text-xs text-red-600">{errors.email.message}</p>}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="password">Contraseña</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    enterKeyHint="go"
+                    placeholder="••••••••"
+                    className="h-11 pr-10"
+                    {...register("password")}
+                    aria-invalid={!!errors.password}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((s) => !s)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
+                {errors.password && <p className="text-xs text-red-600">{errors.password.message}</p>}
+              </div>
+
+              {formError && (
+                <p className="text-sm text-red-600" role="alert">
+                  {formError}
+                </p>
+              )}
+
+              <Button
+                type="submit"
+                className="w-full h-11 rounded-xl font-semibold disabled:opacity-100 disabled:bg-muted disabled:text-muted-foreground disabled:hover:bg-muted"
+                disabled={isSubmitting || !isValid}
+                aria-disabled={isSubmitting || !isValid}
+              >
+                {isSubmitting ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Ingresando…
+                  </span>
+                ) : (
+                  "Iniciar sesión"
+                )}
+              </Button>
+            </form>
           </div>
-
-          <Button
-            type="submit"
-            className="w-full h-11 rounded-2xl"
-            disabled={loading}
-          >
-            {loading ? (
-              <span className="inline-flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" /> Entrando...
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-2">
-                <LogIn className="h-4 w-4" /> Ingresar
-              </span>
-            )}
-          </Button>
-        </form>
-
-        <p className="text-center text-xs text-muted-foreground mt-4">
-          ¿Olvidaste tu contraseña? Contactá al administrador
-        </p>
-      </Card>
+        </motion.div>
+      </div>
     </div>
   );
 }
