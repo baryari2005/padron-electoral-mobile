@@ -5,7 +5,7 @@ import Image from "next/image";
 type Props = {
   fecha?: string;                         // ej: "24 de agosto de 2025"
   seccionTitulo?: string;                 // ej: "SECCIÓN ELECTORAL"
-  seccionValor?: string;                  // ej: "53 - SAN MIGUEL"
+  seccionValor?: string;                  // ej: "53 - San Miguel 2025"
   circuitoLabel?: string;                 // ej: "CIRCUITO"
   circuitoValor?: string;
   mesaLabel?: string;                     // ej: "MESA"

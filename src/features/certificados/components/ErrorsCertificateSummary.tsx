@@ -14,7 +14,7 @@ export function ErrorsCertificateSummary({ errores }: Props) {
           <div className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium italic">
             <TriangleAlert className="w-4 h-4 shrink-0" />
             <span className="font-bold">Errores:</span>
-            <span>{errores}</span>
+            <span>{errores}</span>            
           </div>
         </div>
       </div>

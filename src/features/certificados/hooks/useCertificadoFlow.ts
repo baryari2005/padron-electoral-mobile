@@ -130,8 +130,8 @@ export function useCertificadoFlow() {
   const seccionValor = useMemo(() => {
     const s: any = (escuelaSel as any)?.circuito?.seccion || (escuelaSel as any)?.seccion;
     const codigo = s?.codigo ?? s?.numero ?? s?.id;
-    const nombre = s?.nombre ?? "SAN MIGUEL";
-    return codigo ? `${codigo} - ${nombre}` : "53 - SAN MIGUEL";
+    const nombre = s?.nombre ?? "San Miguel 2025";
+    return codigo ? `${codigo} - ${nombre}` : "53 - San Miguel 2025";
   }, [escuelaSel]);
   const circuitoValor = useMemo(() => {
     const c: any = (escuelaSel as any)?.circuito;

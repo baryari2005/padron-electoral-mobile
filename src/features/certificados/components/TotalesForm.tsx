@@ -9,8 +9,8 @@ import { FormItemNumberAndLyrics } from "./FormItemNumberAndLyrics";
 
 
 interface TotalesFormProps {
-    control: UseFormReturn<CertificadoFormData>["control"];
-    setValue: UseFormReturn<CertificadoFormData>["setValue"];
+  control: UseFormReturn<CertificadoFormData>["control"];
+  setValue: UseFormReturn<CertificadoFormData>["setValue"];
 }
 
 export function TotalesForm({ control, setValue }: TotalesFormProps) {
@@ -18,9 +18,14 @@ export function TotalesForm({ control, setValue }: TotalesFormProps) {
   const votantes = useWatch({ control, name: "totales.votantes" }) ?? 0;
 
   useEffect(() => {
-    if (!isNaN(sobres) && !isNaN(votantes)) {
-      setValue("totales.diferencia", votantes - sobres);
-    }
+    const e = Number(votantes ?? 0);
+    const s = Number(sobres ?? 0);
+    const diff = (Number.isFinite(e) ? e : 0) - (Number.isFinite(s) ? s : 0);
+
+    setValue("totales.diferencia", diff, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
   }, [sobres, votantes, setValue]);
 
   const campos = [

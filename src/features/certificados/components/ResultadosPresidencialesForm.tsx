@@ -11,7 +11,7 @@ import { LogoConFallback } from "@/components/common/LogoWithFallback";
 import type { CertificadoFormData } from "../utils/schema/schema";
 
 type Categoria = { id: string; nombre: string };
-type AgrupacionPolitica = { id: number; nombre: string; numero?: number | string; profileImage?: string | null };
+type AgrupacionPolitica = { id: number; nombre?: string; numero?: number | string; profileImage?: string | null };
 
 interface Props {
   control: Control<CertificadoFormData>;
@@ -25,10 +25,16 @@ interface Props {
 function AvatarLogo({ src, alt }: { src: string; alt: string }) {
   return (
     <div className="size-6 rounded-full ring-1 ring-border overflow-hidden bg-muted shrink-0">
-      <LogoConFallback src={src} alt={alt} className="w-full h-full object-cover" unoptimized={true} />
+      <LogoConFallback src={src} alt={alt} className="w-full h-full object-cover" unoptimized />
     </div>
   );
 }
+
+const isPlaceholder = (s?: string) => {
+  if (!s) return true;
+  const t = s.trim().toUpperCase();
+  return t === "" || t === "SIN NOMBRE" || t === "S/N" || t === "SN";
+};
 
 export function ResultadosPresidencialesForm({
   control,
@@ -40,6 +46,7 @@ export function ResultadosPresidencialesForm({
 }: Props) {
   const { fields, replace } = useFieldArray({ control, name: "resultadosPresidenciales" });
 
+  // sincronicemos la longitud si cambia arriba
   useEffect(() => {
     if (Array.isArray(resultadosPresidenciales) && resultadosPresidenciales.length !== fields.length) {
       replace(resultadosPresidenciales as any);
@@ -58,18 +65,19 @@ export function ResultadosPresidencialesForm({
     setTotales(t);
   }, [valores, categorias]);
 
+  // habilitaciones
   const isHabilitado = (agrupacionId: number | undefined, catId: string) => {
     if (!agrupacionId || loadingPermisos) return false;
     const set = habilitadosPorAgrupacion[agrupacionId];
     return !!set?.has(Number(catId));
   };
 
-  // —— DENSE TUNING ——
+  // —— layout denso ——
   const MAX_VAL = 999;
-  const NUM_COL_MIN_PX = 48;                 // antes 56
+  const NUM_COL_MIN_PX = 48;
   const colPercent = useMemo(() => {
     const base = categorias.length ? Math.floor(52 / categorias.length) : 22;
-    return Math.max(14, Math.min(22, base)); // 14–22 %
+    return Math.max(14, Math.min(22, base));
   }, [categorias.length]);
 
   const gridStyle = useMemo<React.CSSProperties>(() => {
@@ -83,28 +91,50 @@ export function ResultadosPresidencialesForm({
     return Math.max(0, Math.min(MAX_VAL, n));
   };
 
+  // listo si TODAS las agrupaciones tienen nombre no-placeholder
+  const agrupacionesReady =
+    agrupaciones.length > 0 && agrupaciones.every((a) => !isPlaceholder(a?.nombre));
+
+  if (!agrupacionesReady) {
+    return (
+      <section className="bg-card border border-border rounded-2xl shadow-sm p-4">
+        <div className="text-sm text-muted-foreground">Cargando agrupaciones…</div>
+      </section>
+    );
+  }
+
   return (
     <section className="bg-card border border-border rounded-2xl shadow-sm p-3 space-y-2">
-      {/* Encabezado compacto */}
+      {/* Encabezado */}
       <div style={gridStyle} className="grid font-semibold text-[11px] gap-1.5 px-1">
         <div className="uppercase tracking-wide">Agrupación</div>
         {categorias.map((cat) => (
           <div key={cat.id} className="uppercase text-center leading-tight break-words px-0.5">
-            {cat.nombre} 
+            {cat.nombre}
           </div>
         ))}
       </div>
 
       <Separator className="my-1" />
 
-      {/* Filas compactas */}
+      {/* Filas */}
       <div className="space-y-1">
         {fields.map((field, index) => {
-          const row = resultadosPresidenciales[index] as any;
-          const nombre = row?.nombre ?? "SIN NOMBRE";
-          const numero = row?.numero ?? "-";
-          const imagen = getAvatarUrl(nombre, row?.profileImage ?? undefined);
-          const agrupacionId = agrupaciones[index]?.id;
+          const row = (resultadosPresidenciales[index] as any) ?? {};
+          const ag = agrupaciones[index]; // asumimos mismo orden; si no, matchear por id
+          const agrupacionId: number | undefined = ag?.id ?? row?.agrupacionId;
+
+          const displayNombre =
+            ag?.nombre && !isPlaceholder(ag?.nombre)
+              ? ag.nombre
+              : (row?.nombre as string) ?? `Agrupación #${agrupacionId ?? "?"}`;
+
+          const displayNumero = ag?.numero ?? row?.numero ?? "";
+
+          const imagen = getAvatarUrl(
+            String(displayNombre || ""),
+            (ag?.profileImage ?? row?.profileImage ?? undefined) as string | undefined
+          );
 
           return (
             <div
@@ -114,15 +144,18 @@ export function ResultadosPresidencialesForm({
             >
               {/* Columna 1: avatar + texto truncado */}
               <div className="min-w-0 flex items-center gap-2">
-                <AvatarLogo src={imagen} alt={nombre} />
+                <AvatarLogo src={imagen} alt={String(displayNombre)} />
                 <div className="min-w-0 leading-tight">
-                  <div className="text-sm font-semibold uppercase truncate" title={`Lista ${numero} - ${nombre}`}>
-                    {nombre}
+                  <div
+                    className="text-sm font-semibold uppercase truncate"
+                    title={displayNumero ? `Lista ${displayNumero} - ${displayNombre}` : String(displayNombre)}
+                  >
+                    {displayNombre}
                   </div>
                 </div>
               </div>
 
-              {/* Celdas numéricas súper compactas */}
+              {/* Celdas numéricas */}
               {categorias.map((cat) => {
                 const habilitado = isHabilitado(agrupacionId, cat.id);
                 return (
@@ -163,11 +196,11 @@ export function ResultadosPresidencialesForm({
 
       <Separator className="my-1" />
 
-      {/* Totales compactos */}
+      {/* Totales */}
       <div style={gridStyle} className="grid font-semibold text-[13px] items-center mt-3">
         <div className="uppercase">Total de votos por partido.</div>
         {categorias.map((cat) => (
-          <div key={cat.id} className="text-right mr-0.5 tabular-nums">
+          <div key={cat.id} className="text-right mr-6 tabular-nums">
             {totales[cat.id] ?? 0}
           </div>
         ))}

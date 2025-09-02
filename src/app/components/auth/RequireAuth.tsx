@@ -20,9 +20,9 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
         <CommonLoader
           logo="/logo.png"
           alternativeLogo="/logo-white.png"
-          alternativeText="Más San Miguel"
-          title="Votaciones 2025"
-          subTitle="San Miguel"
+          alternativeText="Más San Miguel 2025"
+          title="Elecciones Provinciales"
+          subTitle="San Miguel 2025"
           loaderText="Cargando ..."
         />
       </div>

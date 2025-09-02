@@ -26,9 +26,9 @@ export function Logo() {
       <Image src={logoSrc} alt="Logo" width={50} height={50} className="rounded-lg" priority />
       <div className="flex flex-col leading-tight ml-4">
         <h1 className="font-bold text-xl">
-          {capitalizeEachWord("Votaciones 2025")}
+          {capitalizeEachWord("Elecciones Provinciales")}
         </h1>
-        <h2 className="text-sm text-center">{capitalizeEachWord("San Miguel")}</h2>
+        <h2 className="text-sm text-center">{capitalizeEachWord("San Miguel 2025")}</h2>
       </div>
     </div>
   );

@@ -1,57 +1,37 @@
-// app/api/app-auth/login/route.ts
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
 import { ENV } from "@/lib/env";
 
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
-
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) ?? {};
-    const payload = {
-      email: body.email ?? body.identifier ?? body.username ?? body.user,
-      username: body.username ?? body.identifier ?? body.email ?? body.user,
-      identifier: body.identifier ?? body.email ?? body.username ?? body.user,
-      password: body.password ?? body.pass,
-      ...body,
-    };
-
-    if (!payload.email && !payload.username && !payload.identifier) {
-      return NextResponse.json({ error: "Falta email/username" }, { status: 400 });
-    }
-    if (!payload.password) {
-      return NextResponse.json({ error: "Falta password" }, { status: 400 });
-    }
-
+    const body = await req.json();
     const upstream = await fetch(`${ENV.API_BASE_URL}${ENV.AUTH_LOGIN_PATH}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ identifier: body.identifier, password: body.password }),
       cache: "no-store",
     });
 
-    const text = await upstream.text();
-    const data = text ? (() => { try { return JSON.parse(text); } catch { return { raw: text }; } })() : {};
+    const data = await upstream.json().catch(() => ({}));
 
     if (!upstream.ok) {
-      return NextResponse.json(
-        { error: data?.message || data?.error || "Login rechazado", details: data },
-        { status: upstream.status }
-      );
+      return NextResponse.json(data, { status: upstream.status });
     }
 
-    const token: string | undefined =
-      (data as any).token ?? (data as any).access_token ?? (data as any).jwt ?? (data as any).data?.token;
-
-    if (!token) {
-      return NextResponse.json({ error: "Respuesta de login sin token" }, { status: 502 });
+    // 👇 guardamos la cookie HttpOnly para que /api/app-auth/me funcione sin header
+    const res = NextResponse.json(data);
+    if (data?.token) {
+      res.cookies.set("auth_token", data.token, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7, // 7 días
+      });
     }
-
-    // ⬇️ devolvemos el token en el body; NO cookies
-    return new NextResponse(
-      JSON.stringify({ ok: true, token, user: (data as any).user ?? (data as any).data?.user ?? null }),
-      { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }
-    );
+    return res;
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? "Error" }, { status: 500 });
   }
