@@ -26,6 +26,8 @@ interface AuthState {
 
   fetchUser: () => Promise<void>;
   logout: () => Promise<void>;
+
+  reset: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -36,7 +38,7 @@ export const useAuthStore = create<AuthState>()(
       loading: false,
       hasHydrated: false,
       triedMe: false,
-
+      reset: () => set({ user: null, token: null }),
       setUser: (user) => {
         console.log("[auth] setUser()", user ? user.email : "null");
         set({ user });

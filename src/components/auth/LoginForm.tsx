@@ -1,7 +1,7 @@
 // src/components/auth/LoginForm.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginValues } from "@/lib/validations/login.schema";
@@ -14,8 +14,27 @@ import { useRouter } from "next/navigation";
 
 import { useAuth } from "stores/auth";               // tu store en memoria (si la usás)
 import { Logo } from "@/app/components/Logo";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 export default function LoginForm() {
+  useEffect(() => {
+    try {
+      // limpiar stores locales que puedan “enganchar” el usuario anterior
+      localStorage.removeItem("auth-store");
+      localStorage.removeItem("token");
+      // si tu store tiene reset:
+      useAuthStore.getState().reset?.();
+    } catch { }
+
+    // Safari Back-Forward Cache: si vuelve cacheado, forzar reload
+    const onShow = (e: PageTransitionEvent) => {
+      // @ts-ignore
+      if (e.persisted) location.reload();
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
+
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
