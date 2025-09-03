@@ -31,7 +31,7 @@ import { useCategorias } from "@/features/certificados/hooks/useCategorias";
 import { useAgrupaciones } from "@/features/certificados/hooks/useAgrupaciones";
 import { usePermisosMatriz } from "@/features/certificados/hooks/usePermisosMatriz";
 
-import { useAuthStore } from "@/stores/useAuthStore";
+import { useAuth } from "@/stores/auth";
 
 import { STEPS, STEP_FIELDS } from "./constants";
 import { useWizardSteps } from "./hooks/useWizardSteps";
@@ -50,10 +50,10 @@ const fechaEs = new Intl.DateTimeFormat("es-AR", {
 }).format(new Date());
 
 export default function CertificadoWizardMobile() {
-  const user = useAuthStore((s) => s.user);
-  const token = useAuthStore((s) => s.token);
-  const hasHydrated = useAuthStore((s) => s.hasHydrated);
-  const fetchUser = useAuthStore((s) => s.fetchUser);
+  const user = useAuth((s) => s.user);
+  const token = useAuth((s) => s.token);
+  const hasHydrated = useAuth((s) => s.hasHydrated);
+  const fetchUser = useAuth((s) => s.fetchUser);
 
   const [sinMesasInfo, setSinMesasInfo] = useState({
     sinMesas: false,

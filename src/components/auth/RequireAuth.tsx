@@ -3,12 +3,12 @@
 
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { useAuthStore } from "@/stores/useAuthStore";
+import { useAuth } from "@/stores/auth";
 
 export function RequireAuth2({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, hasHydrated, loading, triedMe, fetchUser } = useAuthStore();
+  const { user, hasHydrated, loading, triedMe, fetchUser } = useAuth();
 
   useEffect(() => {
     // log de montaje

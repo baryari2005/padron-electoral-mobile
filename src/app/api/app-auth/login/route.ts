@@ -6,7 +6,11 @@ import { ENV } from "@/lib/env";
 
 export async function POST(req: Request) {
   try {
+
+    
     const body = await req.json();
+    console.log("[LOGIN]", body.identifier);
+
     const upstream = await fetch(`${ENV.API_BASE_URL}${ENV.AUTH_LOGIN_PATH}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -16,6 +20,7 @@ export async function POST(req: Request) {
 
     const data = await upstream.json().catch(() => ({}));
 
+    console.log("[DATA]", data);
     if (!upstream.ok) {
       return NextResponse.json(data, { status: upstream.status });
     }

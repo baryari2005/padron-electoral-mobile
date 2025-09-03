@@ -11,7 +11,8 @@ import { ENV } from "@/lib/env";
 const mask = (t?: string | null) => (t ? `${t.slice(0, 8)}...${t.slice(-4)}` : "null");
 
 export async function GET(req: Request) {
-  console.log("[/api/app-auth/me] HIT");  // <--- TIENE QUE APARECER
+
+  console.log("[/api/app-auth/me] HIT", req);  // <--- TIENE QUE APARECER
   try {
     const cookieStore = await cookies();
     const cookieToken = cookieStore.get("auth_token")?.value ?? null;
