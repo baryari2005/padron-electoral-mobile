@@ -33,7 +33,7 @@ export default function UserAvatar({ size = 28, className, showName = false, col
     return (a[0] + (b[0] || "") || a[0]).toUpperCase();
   }, [user]);
 
-  const title = user?.nombre || user?.email || "Usuario";
+  const title = user?.nombre + "-" + user?.email || "Usuario";
   const tone = toneClasses[color];
 
   return (

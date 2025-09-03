@@ -160,9 +160,12 @@ export const useAuth = create<AuthState>()(
       },
       logout: async () => {
         try {
-          await fetch("/api/app-auth/logout", { method: "POST" }).catch(() => { });
-        } finally {
-          // limpieza completa
+          await fetch("/api/app-auth/logout", { 
+            method: "POST",
+            cache: "no-store", 
+            credentials: "include"        
+        }).catch(() => { });
+        } finally {          
           localStorage.removeItem("escuelaId");
           localStorage.removeItem("mesaSeleccionada");
           set({

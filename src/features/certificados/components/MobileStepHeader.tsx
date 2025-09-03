@@ -4,8 +4,9 @@
 import { Logo } from "@/app/components/Logo";
 import { Separator } from "@/components/ui/separator";
 import { MapPinned, School, Table2, Hash } from "lucide-react";
-import UserAvatar from "@/components/auth/UserAvatar"; // 👈 nombre/ruta correctos
+// import UserAvatar from "@/components/auth/UserAvatar"; // 👈 nombre/ruta correctos
 import { cn } from "@/lib/utils";
+import AvatarMenu from "@/components/auth/AvatarMenu";
 
 type Props = {
   step: number;                         // 0-based
@@ -20,11 +21,11 @@ type Props = {
 
 // Chip con Escuela + Nº colegio + Circuito (en una sola línea, con elipsis)
 function CompositeChip({
-  escuela,  
+  escuela,
   circuito,
   className,
 }: {
-  escuela?: string | null;  
+  escuela?: string | null;
   circuito?: string | number | null;
   className?: string;
 }) {
@@ -64,7 +65,7 @@ function CompositeChip({
 export default function MobileStepHeader({
   step,
   steps,
-  escuela,  
+  escuela,
   circuito,
   mesa,
   loadingText,
@@ -100,26 +101,22 @@ export default function MobileStepHeader({
 
         {/* Chips (una sola línea) + avatar */}
         <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2">
-          <CompositeChip
-            escuela={escuela}          
-            circuito={circuito}
-            className="min-w-0"
-          />
+          <CompositeChip escuela={escuela} circuito={circuito} className="min-w-0" />
 
-          {/* Mesa en chip aparte */}
           <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2 py-1 text-[11px] whitespace-nowrap">
             <Table2 className="w-3.5 h-3.5 opacity-60" />
             <strong className="font-mono">{mesa ?? "—"}</strong>
           </span>
 
-          <span className="inline-flex items-center gap-2 justify-self-end">
+          {/* AVATAR + estado de carga */}
+          <div className="inline-flex items-center gap-2 justify-self-end">
             {loadingText && (
               <span className="text-[11px] text-muted-foreground whitespace-nowrap">
                 {loadingText}
               </span>
             )}
-            <UserAvatar size={28} color={avatarColor} />
-          </span>
+            <AvatarMenu className="ml-auto" />
+          </div>
         </div>
       </div>
 
