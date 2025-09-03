@@ -8,11 +8,11 @@ import { useAuth } from "@/stores/auth";
 type Tone = "muted" | "primary" | "emerald" | "sky" | "rose";
 
 const toneClasses: Record<Tone, string> = {
-  muted:   "bg-muted text-foreground/80 ring-border",
+  muted: "bg-muted text-foreground/80 ring-border",
   primary: "bg-primary text-primary-foreground ring-primary/30",
   emerald: "bg-emerald-600 text-white ring-emerald-300/50",
-  sky:     "bg-sky-600 text-white ring-sky-300/50",
-  rose:    "bg-rose-600 text-white ring-rose-300/50",
+  sky: "bg-sky-600 text-white ring-sky-300/50",
+  rose: "bg-rose-600 text-white ring-rose-300/50",
 };
 
 type Props = {
@@ -26,13 +26,14 @@ export default function UserAvatar({ size = 28, className, showName = false, col
   const user = useAuth((s) => s.user);
 
   const initials = useMemo(() => {
-    const s = (user?.name || user?.email || "").trim();
+    const s = ([user?.nombre, user?.apellido].filter(Boolean).join(" ") || user?.email || "").trim();
+
     if (!s) return "U";
     const [a = "", b = ""] = s.split(/\s+/);
     return (a[0] + (b[0] || "") || a[0]).toUpperCase();
   }, [user]);
 
-  const title = user?.name || user?.email || "Usuario";
+  const title = user?.nombre || user?.email || "Usuario";
   const tone = toneClasses[color];
 
   return (
