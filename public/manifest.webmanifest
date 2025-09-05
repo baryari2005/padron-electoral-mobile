@@ -1,6 +1,6 @@
 {
-  "name": "Votaciones San Miguel 2025",
-  "short_name": "Votos 2025",
+  "name": "Elecciones Provinciales - San Miguel 2025",
+  "short_name": "Elecciones Provinciales SM 2025",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
