@@ -19,10 +19,10 @@ const mesaSchema = z.object({
 });
 
 const votosPorColumna = z.object({
-  nulos: z.number().min(0),
-  recurridos: z.number().min(0),
+  // nulos: z.number().min(0),
+  // recurridos: z.number().min(0),
   impugnados: z.number().min(0),
-  comandoElectoral: z.number().min(0),
+  // comandoElectoral: z.number().min(0),
   blancos: z.number().min(0),
 });
 

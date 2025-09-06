@@ -8,10 +8,10 @@ export function toApiPayload(values: CertificadoFormData, categorias: { id: stri
   for (const [catId, obj] of Object.entries(values.votosEspeciales || {})) {
     const o = obj as any;
     votosEspeciales[String(catId)] = {
-      nulos: toNum(o?.nulos),
-      recurridos: toNum(o?.recurridos),
+      // nulos: toNum(o?.nulos),
+      // recurridos: toNum(o?.recurridos),
       impugnados: toNum(o?.impugnados),
-      comandoElectoral: toNum(o?.comandoElectoral),
+      // comandoElectoral: toNum(o?.comandoElectoral),
       blancos: toNum(o?.blancos),
     };
   }

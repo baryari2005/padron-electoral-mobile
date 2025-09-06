@@ -43,7 +43,8 @@ export function useInconsistenciasPorColumna(
 
     // B) suma por categoría de “especiales”
     const totalEspPorCatId: Record<string, number> = {};
-    const keys = ["nulos","recurridos","impugnados","comandoElectoral","blancos"] as const;
+    // const keys = ["nulos","recurridos","impugnados","comandoElectoral","blancos"] as const;
+    const keys = ["impugnados","blancos"] as const;
     for (const cat of categorias) {
       const obj = (votosEspeciales as any)?.[cat.id] ?? {};
       totalEspPorCatId[cat.id] = keys.reduce((s,k)=> s + toN(obj[k]), 0);

@@ -8,9 +8,9 @@ export const resultadoSchema = z.object({
 });
 
 export const votosEspecialesSchema = z.object({
-  nulos: z.coerce.number().int().min(0).default(0),
+  // nulos: z.coerce.number().int().min(0).default(0),
   enBlanco: z.coerce.number().int().min(0).default(0),
-  recurridos: z.coerce.number().int().min(0).default(0),
+  // recurridos: z.coerce.number().int().min(0).default(0),
   impugnados: z.coerce.number().int().min(0).default(0),
 });
 

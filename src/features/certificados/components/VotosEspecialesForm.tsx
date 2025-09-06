@@ -14,20 +14,20 @@ interface Categoria {
 }
 
 const votoEspecialKeys = [
-  "nulos",
-  "recurridos",
+  // "nulos",
+  // "recurridos",
   "impugnados",
-  "comandoElectoral",
+  // "comandoElectoral",
   "blancos",
 ] as const;
 
 type VotoEspecialKey = typeof votoEspecialKeys[number];
 
 const items: { key: VotoEspecialKey; label: string; sub?: string }[] = [
-  { key: "nulos", label: "VOTOS NULOS" },
-  { key: "recurridos", label: "VOTOS RECURRIDOS", sub: "QUE SE REMITEN EN SOBRE N°3" },
+  // { key: "nulos", label: "VOTOS NULOS" },
+  // { key: "recurridos", label: "VOTOS RECURRIDOS", sub: "QUE SE REMITEN EN SOBRE N°3" },
   { key: "impugnados", label: "VOTOS DE IDENTIDAD IMPUGNADA", sub: "QUE SE REMITEN EN SOBRE N°3" },
-  { key: "comandoElectoral", label: "VOTOS DEL COMANDO ELECTORAL", sub: "QUE SE REMITEN EN EL BOLSÍN" },
+  // { key: "comandoElectoral", label: "VOTOS DEL COMANDO ELECTORAL", sub: "QUE SE REMITEN EN EL BOLSÍN" },
   { key: "blancos", label: "VOTOS EN BLANCO" }, // ← calculado
 ];
 
@@ -109,11 +109,12 @@ export function VotosEspecialesForm({ control, categorias }: VotosEspecialesForm
     for (const cat of categorias) {
       const espCat = (especiales as any)?.[cat.id] ?? {};
 
-      const sumaEspecialesSinBlancos =
-        toN(espCat.nulos) +
-        toN(espCat.recurridos) +
-        toN(espCat.impugnados) +
-        toN(espCat.comandoElectoral);
+      // const sumaEspecialesSinBlancos =
+      //   toN(espCat.nulos) +
+      //   toN(espCat.recurridos) +
+      //   toN(espCat.impugnados) +
+      //   toN(espCat.comandoElectoral);
+      const sumaEspecialesSinBlancos = toN(espCat.impugnados);
 
       const totalAgr = totalAgrPorCatId[cat.id] ?? 0;
       let blancos = totalSobres - (totalAgr + sumaEspecialesSinBlancos);
